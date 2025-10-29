@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Орбитальный Страж</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-bg: #0D0F1A;
+            --secondary-bg: #1A1C2A;
+            --accent-color: #00A2FF;
+            --light-accent-color: #87CEEB;
+            --text-color: #E0E0E0;
+            --danger-color: #FF4141;
+            --asteroid-color-default: #A0A0A0;
+            --font: 'Inter', sans-serif;
+            --shadow: 0px 8px 25px rgba(0, 162, 255, 0.2);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--primary-bg);
+            color: var(--text-color);
+            font-family: var(--font);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            touch-action: none; 
+        }
+
+        .game-wrapper {
+            width: 100%;
+            height: 100%;
+            max-width: 450px; 
+            max-height: 900px;
+            background-color: var(--primary-bg);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            transition: background-color 0.5s ease;
+        }
+
+        /* --- Стили Экранов --- */
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between; 
+            align-items: center;
+            padding: 40px;
+            padding-top: 60px;
+            opacity: 0;
+            visibility: hidden;
+            transform: scale(1.05);
+            transition: opacity 0.5s ease, transform 0.5s ease, visibility 0.5s;
+            z-index: 10;
+        }
+
+        .screen.active {
+            opacity: 1;
+            visibility: visible;
+            transform: scale(1);
+        }
+        
+        #game-screen {
+            padding: 0;
+            justify-content: flex-start;
+        }
+        
+        .page-header {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 15;
+        }
+
+        /* --- Главное Меню --- */
+        #main-menu .title {
+            font-size: clamp(2.5rem, 10vw, 3.5rem);
+            font-weight: 900;
+            color: white;
+            letter-spacing: -2px;
+            text-shadow: 0 0 15px var(--accent-color);
+            text-align: center;
+            align-self: flex-start;
+            width: 100%;
+        }
+
+        .main-menu-center-animation {
+            position: absolute;
+            top: 30%;
+            left: 10%;
+            width: 80%;
+            height: 40%;
+            z-index: -1;
+        }
+
+        .main-menu-bottom-controls {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .popup-menu-container {
+            position: relative;
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        .popup-menu {
+            position: absolute;
+            bottom: 0; 
+            left: 0; 
+            transform: none;
+            width: 70px; 
+
+            background: var(--secondary-bg);
+            border-radius: 35px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            /* ИЗМЕНЕНИЕ 1: Добавлен отступ снизу, равный высоте кнопки (70px) */
+            padding-bottom: 70px;
+            display: flex;
+            flex-direction: column; 
+            gap: 10px;
+            
+            clip-path: circle(35px at 35px calc(100% - 35px));
+            transition: clip-path 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+        }
+
+        .popup-menu.active {
+            /* Примечание: clip-path был 300px. 
+              Из-за padding-bottom: 70px, чтобы фон точно покрывал всю область, 
+              нужно увеличить радиус. (300 + 70 / 2 = 335). Возьмем 350 с запасом.
+            */
+            clip-path: circle(350px at 35px calc(100% - 35px));
+            pointer-events: auto;
+        }
+        
+        .popup-menu .btn-icon {
+            width: 50px;
+            height: 50px;
+            transform: scale(0.5); 
+            opacity: 0;
+            transition: transform 0.3s ease, opacity 0.2s ease;
+            pointer-events: none;
+        }
+
+        .popup-menu.active .btn-icon {
+            transform: scale(1);
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .popup-menu.active #rules-btn-menu { transition-delay: 0.1s; }
+        .popup-menu.active #settings-btn-menu { transition-delay: 0.15s; }
+        .popup-menu.active #stats-btn-menu { transition-delay: 0.2s; }
+        .popup-menu.active #dev-settings-btn-menu { transition-delay: 0.25s; }
+
+        .popup-menu .btn-icon svg {
+            width: 24px;
+            height: 24px;
+        }
+        .popup-menu .btn-icon#dev-settings-btn-menu {
+            font-size: 1rem;
+            /* --- ИЗМЕНЕНИЕ 2 (UI 1) --- */
+            margin-bottom: 10px; /* Добавляем запрошенный зазор */
+        }
+        
+        #popup-toggle-btn {
+            position: absolute;
+            bottom: 0; 
+            left: 0; 
+            transform: none;
+            z-index: 21; 
+            pointer-events: auto;
+            transition: transform 0.3s ease; 
+            width: 70px; 
+            height: 70px;
+        }
+        
+        #popup-toggle-btn .icon-arrow {
+            display: none;
+            fill: var(--text-color);
+            width: 56px;
+            height: 56px;
+        }
+        #popup-toggle-btn .icon-dots {
+             width: 28px; 
+             height: 28px;
+        }
+        
+        #popup-toggle-btn.active {
+            background: var(--accent-color); 
+        }
+        #popup-toggle-btn.active .icon-dots {
+            display: none;
+        }
+        #popup-toggle-btn.active .icon-arrow {
+            display: block;
+            fill: var(--primary-bg); 
+        }
+        #popup-toggle-btn.active:hover svg {
+            fill: var(--primary-bg);
+        }
+
+        .play-button-container {
+            position: absolute;
+            bottom: 40px;
+            right: 40px;
+            width: 150px; 
+            height: 150px; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 15;
+        }
+
+        #main-play-btn {
+            width: 150px; 
+            height: 150px; 
+            border-radius: 50%;
+            background: linear-gradient(145deg, var(--accent-color), #007bff);
+            border: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow);
+            
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 15;
+        }
+        #main-play-btn:hover {
+            transform: scale(1.05); 
+            box-shadow: 0px 10px 30px rgba(0, 162, 255, 0.4);
+        }
+        #main-play-btn:active {
+            transform: scale(0.98);
+        }
+
+        #main-play-btn svg {
+            width: 96px; 
+            height: 96px; 
+        }
+
+        #world-map-btn, #station-btn {
+            position: absolute;
+            z-index: 10;
+            width: 100px; 
+            height: 100px; 
+            top: 50%;
+            left: 50%;
+            margin-top: -50px; 
+            margin-left: -50px; 
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        #world-map-btn {
+            transform: rotate(-95deg) translate(150px) rotate(95deg);
+        }
+        #station-btn {
+            transform: rotate(-150deg) translate(150px) rotate(150deg);
+        }
+        #world-map-btn:hover {
+             transform: rotate(-95deg) translate(142px) rotate(95deg) scale(1.1);
+        }
+        #station-btn:hover {
+             transform: rotate(-150deg) translate(142px) rotate(150deg) scale(1.1);
+        }
+
+        
+        #world-map-btn svg, #station-btn svg {
+            width: 48px; 
+            height: 48px;
+        }
+        
+        .icon-stroke {
+            stroke: var(--text-color);
+            transition: stroke 0.3s ease;
+        }
+        .btn-icon:hover .icon-stroke {
+            stroke: var(--primary-bg);
+        }
+        .btn-icon:hover #world-map-icon .icon-stroke-gradient {
+            stroke: url(#fade-gradient-hover);
+        }
+
+
+        /* --- Общие стили кнопок --- */
+        .btn {
+            background: transparent;
+            border: 2px solid var(--accent-color);
+            color: var(--accent-color);
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            user-select: none;
+        }
+
+        .btn:hover, .btn:focus {
+            background-color: var(--accent-color);
+            color: var(--primary-bg);
+            box-shadow: var(--shadow);
+            transform: translateY(-3px);
+        }
+        
+        .btn:active {
+            transform: translateY(0px);
+        }
+        
+        .btn.btn-danger {
+            border-color: var(--danger-color);
+            color: var(--danger-color);
+        }
+        .btn.btn-danger:hover {
+            background-color: var(--danger-color);
+            color: var(--primary-bg);
+        }
+
+
+        .btn-icon {
+            background: var(--secondary-bg);
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            user-select: none;
+        }
+
+        .btn-icon svg {
+            width: 28px;
+            height: 28px;
+            fill: var(--text-color);
+            transition: fill 0.3s ease;
+        }
+        
+        .btn-icon:hover {
+            background: var(--accent-color);
+            box-shadow: var(--shadow);
+        }
+
+        .btn-icon:hover svg {
+            fill: var(--primary-bg);
+        }
+        
+        #dev-settings-btn-menu {
+            font-size: 1.2rem; 
+            font-weight: 700; 
+            color: var(--text-color);
+        }
+        #dev-settings-btn-menu:hover {
+            color: var(--primary-bg);
+        }
+        
+        
+        /* --- Игровой Экран (без изменений) --- */
+        #game-canvas {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        
+        .game-ui {
+            position: relative;
+            z-index: 5;
+            width: 100%;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .game-ui-top-row {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+
+        #score-display, #pause-btn {
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        #score-display {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: white;
+            text-shadow: 0 0 10px rgba(255,255,255,0.7);
+        }
+        
+        #pause-btn {
+            background: rgba(26, 28, 42, 0.7);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        #fuel-bar-container {
+            width: 100%;
+            height: 16px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 8px;
+            overflow: hidden;
+            display: none;
+            margin-top: 10px;
+            position: relative;
+            transition: transform 0.1s ease-out, opacity 0.5s ease;
+            opacity: 0;
+        }
+        #fuel-bar {
+            width: 100%;
+            height: 100%;
+            background-color: #FFD700;
+            border-radius: 8px;
+            transition: width 0.1s linear, background-color 0.2s ease;
+        }
+        
+        /* --- Модальные окна (без изменений) --- */
+        .modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(13, 15, 26, 0.7);
+            backdrop-filter: blur(10px);
+            z-index: 20;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        
+        .modal.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal-content {
+            background: var(--secondary-bg);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            width: 90%;
+            max-width: 350px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+        
+        .modal.active .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 30px;
+        }
+        
+        #final-score, #final-best, #final-loot {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+        #final-score span, #final-best span, #final-loot span {
+            font-weight: 700;
+            color: var(--accent-color);
+        }
+        
+        /* --- Экраны (без изменений) --- */
+        .page-content {
+            width: 100%;
+            text-align: left;
+            margin-bottom: 20px;
+            max-height: 70vh;
+            /* --- ИЗМЕНЕНИЕ --- */
+            /* Решаем проблему с обрезкой кнопок на экране Станции */
+            overflow-y: hidden;
+            overflow-x: visible; /* <-- ДОБАВЛЕНО */
+            padding: 0 10px;
+        }
+        
+        /* --- УДАЛЕНО СЛЕДУЮЩЕЕ ИЗМЕНЕНИЕ ---
+        /* --- ИЗМЕНЕНИЕ 3 (UI 2) --- */
+        /* #station-screen .page-content {
+            padding: 0 20px;
+        }
+        */
+        
+        #dev-settings-screen .page-content {
+            overflow-y: auto;
+        }
+
+        #level-select-screen .modal-title {
+            margin-top: 60px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+        
+        .stat-item {
+            background: var(--secondary-bg);
+            padding: 20px;
+            border-radius: 15px;
+        }
+        
+        .stat-item h3 {
+            font-size: 1rem;
+            color: var(--light-accent-color);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        
+        .stat-item p {
+            font-size: 2.2rem;
+            font-weight: 700;
+        }
+
+        .rules-content p {
+            font-size: 1.1rem;
+            line-height: 1.7;
+            margin-bottom: 20px;
+        }
+
+        .settings-list {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--secondary-bg);
+            padding: 15px 20px;
+            border-radius: 15px;
+        }
+
+        .setting-item span, .setting-item label {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+            flex-shrink: 0;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #333;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--accent-color);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        .radio-group label {
+            display: block;
+            margin: 10px 0;
+            background-color: var(--primary-bg);
+            padding: 10px 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: border-color 0.3s;
+        }
+        .radio-group input:checked + label {
+            border-color: var(--accent-color);
+        }
+        .radio-group input {
+            display: none;
+        }
+
+        /* --- Выбор уровня (без изменений) --- */
+        .level-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            width: 100%;
+        }
+        .level-btn {
+            aspect-ratio: 1 / 1;
+            background-color: var(--secondary-bg);
+            border: 2px solid transparent;
+            border-radius: 15px;
+            color: var(--text-color);
+            font-size: 2rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.1s ease, border-color 0.2s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .level-btn:hover:not(.locked) {
+             border-color: var(--accent-color);
+        }
+        .level-btn:active:not(.locked) {
+            transform: scale(0.95);
+        }
+        .level-btn.locked {
+            background-color: #2a2d3f;
+            color: #5b5f7e;
+            cursor: not-allowed;
+        }
+
+        /* Стили для кнопок на экране Станции */
+        .station-menu-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+        }
+        .station-btn {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            background: var(--secondary-bg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            width: 100%;
+            color: var(--text-color);
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .station-btn:hover {
+            border-color: var(--accent-color);
+            transform: scale(1.03);
+        }
+        .station-btn .icon-container {
+            width: 50px;
+            height: 50px;
+            flex-shrink: 0;
+            background: var(--primary-bg);
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            /* ИЗМЕНЕНИЕ 2: Стили для текстовых иконок "А" и "М" */
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--accent-color);
+        }
+        .station-btn .icon-container svg {
+            width: 28px;
+            height: 28px;
+            stroke: var(--accent-color);
+            fill: none;
+            stroke-width: 2;
+        }
+        .station-btn .btn-text {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+    </style>
+</head>
+<body>
+    <svg width="0" height="0" style="position:absolute">
+        <defs>
+            <linearGradient id="fade-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" style="stop-color:var(--text-color);stop-opacity:0" />
+                <stop offset="25%" style="stop-color:var(--text-color);stop-opacity:1" />
+                <stop offset="75%" style="stop-color:var(--text-color);stop-opacity:1" />
+                <stop offset="100%" style="stop-color:var(--text-color);stop-opacity:0" />
+            </linearGradient>
+            <linearGradient id="fade-gradient-hover" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" style="stop-color:var(--primary-bg);stop-opacity:0" />
+                <stop offset="25%" style="stop-color:var(--primary-bg);stop-opacity:1" />
+                <stop offset="75%" style="stop-color:var(--primary-bg);stop-opacity:1" />
+                <stop offset="100%" style="stop-color:var(--primary-bg);stop-opacity:0" />
+            </linearGradient>
+        </defs>
+    </svg>
+
+    <div class="game-wrapper">
+        <!-- Главное Меню -->
+        <div id="main-menu" class="screen active">
+            <h1 class="title">Орбитальный Страж</h1>
+            
+            <div class="main-menu-center-animation"></div>
+
+            <div class="main-menu-bottom-controls">
+                
+                <div class="popup-menu-container">
+                    <div id="popup-menu" class="popup-menu">
+                        <button id="rules-btn-menu" class="btn-icon" aria-label="Правила">
+                             <svg viewBox="0 0 24 24"><path d="M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" /></svg>
+                        </button>
+                        <button id="settings-btn-menu" class="btn-icon" aria-label="Настройки">
+                            <svg viewBox="0 0 24 24"><path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.98C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.98L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.98Z" /></svg>
+                        </button>
+                        <button id="stats-btn-menu" class="btn-icon" aria-label="Статистика">
+                            <svg viewBox="0 0 24 24"><path d="M22,21H2V3H4V19H6V10H10V19H12V6H16V19H18V14H22V21Z" /></svg>
+                        </button>
+                        <button id="dev-settings-btn-menu" class="btn-icon" aria-label="Инструменты разработчика">
+                            DM
+                        </button>
+                    </div>
+                    <button id="popup-toggle-btn" class="btn-icon" aria-label="Дополнительное меню">
+                        <svg class="icon-dots" viewBox="0 0 24 24"><path d="M12,16A2,2 0 0,1 14,18A2,2 0 0,1 12,20A2,2 0 0,1 10,18A2,2 0 0,1 12,16M12,10A2,2 0 0,1 14,12A2,2 0 0,1 12,14A2,2 0 0,1 10,12A2,2 0 0,1 12,10M12,4A2,2 0 0,1 14,6A2,2 0 0,1 12,8A2,2 0 0,1 10,6A2,2 0 0,1 12,4Z" /></svg>
+                        <svg class="icon-arrow" viewBox="0 0 24 24"><path d="M7,10L12,15L17,10H7Z" /></svg>
+                    </button>
+                </div>
+
+                <div class="play-button-container">
+                    <button id="world-map-btn" class="btn-icon" aria-label="Карта мира">
+                        <svg id="world-map-icon" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="6" cy="6" r="2.5" fill="#FFFFFF" stroke="none"></circle>
+                            <circle cx="18" cy="10" r="2.5" fill="#FFFFFF" stroke="none"></circle>
+                            <circle cx="10" cy="18" r="2.5" fill="#FFFFFF" stroke="none"></circle>
+                            <path d="M8 7.5l8 1" class="icon-stroke-gradient" stroke-width="1" stroke="url(#fade-gradient)"></path>
+                            <path d="M16.5 11.5l-5 5" class="icon-stroke-gradient" stroke-width="1" stroke="url(#fade-gradient)"></path>
+                        </svg>
+                    </button>
+
+                    <button id="main-play-btn" aria-label="Играть">
+                        <svg viewBox="0 0 24 24" style="margin-left: 4px;">
+                            <path fill="#ffffff" d="M8 5.14 L19 12.14 L8 19.14 V 5.14 Z"></path>
+                            <path fill="#f0f0f0" d="M8 5.14 L19 12.14 L12 12.14 Z"></path>
+                            <path fill="#e0e0e0" d="M8 19.14 L19 12.14 L12 12.14 Z"></path>
+                        </svg>
+                    </button>
+
+                    <button id="station-btn" class="btn-icon" aria-label="Станция">
+                         <svg viewBox="0 0 24 24" fill="none" class="icon-stroke" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2L12 8"></path>
+                            <path d="M12 16L12 22"></path>
+                            <path d="M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"></path>
+                            <path d="M4 8L4 16"></path>
+                            <path d="M20 8L20 16"></path>
+                            <path d="M2 12L6 12"></path>
+                            <path d="M18 12L22 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Игровой экран -->
+        <div id="game-screen" class="screen">
+            <div class="game-ui">
+                <div class="game-ui-top-row">
+                    <div id="score-display">0.00</div>
+                    <button id="pause-btn" class="btn-icon" aria-label="Пауза">
+                        <svg viewBox="0 0 24 24"><path d="M14,19H18V5H14M6,19H10V5H6V19Z" /></svg>
+                    </button>
+                </div>
+                 <div id="fuel-bar-container">
+                    <div id="fuel-bar"></div>
+                </div>
+            </div>
+            <canvas id="game-canvas"></canvas>
+        </div>
+
+        <!-- Экраны -->
+        <div id="level-select-screen" class="screen">
+            <div class="page-header">
+                <button class="btn-icon btn-back" aria-label="Назад">
+                    <svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" /></svg>
+                </button>
+            </div>
+            <h2 class="modal-title">Выберите уровень</h2>
+            <div class="page-content">
+                <div id="level-grid" class="level-grid"></div>
+            </div>
+        </div>
+        
+        <div id="stats-screen" class="screen">
+             <div class="page-header">
+                <button class="btn-icon btn-back" aria-label="Назад">
+                    <svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" /></svg>
+                </button>
+            </div>
+             <h2 class="modal-title">Статистика</h2>
+             <div class="page-content">
+                 <div class="stats-grid">
+                     <div class="stat-item">
+                         <h3>Рекорд выживания</h3>
+                         <p id="best-time-stat">0.00</p>
+                     </div>
+                     <div class="stat-item">
+                         <h3>Количество попыток</h3>
+                         <p id="attempts-stat">0</p>
+                     </div>
+                 </div>
+             </div>
+        </div>
+
+        <div id="rules-screen" class="screen">
+             <div class="page-header">
+                <button class="btn-icon btn-back" aria-label="Назад">
+                    <svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" /></svg>
+                </button>
+            </div>
+             <h2 class="modal-title">Правила игры</h2>
+             <div class="page-content rules-content">
+                <p>🚀 <b>Цель:</b> выжить как можно дольше, управляя ракетой на орбите планет.</p>
+                <p>🕹️ <b>Управление:</b> нажмите и удерживайте экран (или левую кнопку мыши), чтобы активировать двигатели и отдалиться от планет.</p>
+                <p>💥 <b>Опасности:</b> избегайте столкновения с планетами, пролетающими астероидами и не улетайте слишком далеко за пределы игровой зоны!</p>
+             </div>
+        </div>
+        
+        <div id="settings-screen" class="screen">
+             <div class="page-header">
+                <button class="btn-icon btn-back" aria-label="Назад">
+                    <svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" /></svg>
+                </button>
+            </div>
+             <h2 class="modal-title">Настройки</h2>
+             <div class="page-content">
+                <div class="settings-list">
+                    <div class="setting-item">
+                        <span>Музыка</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="music-toggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <span>Звуки</span>
+                         <label class="toggle-switch">
+                            <input type="checkbox" id="sound-toggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+             </div>
+        </div>
+
+        <div id="dev-settings-screen" class="screen">
+             <div class="page-header">
+                <button class="btn-icon btn-back" aria-label="Назад">
+                    <svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" /></svg>
+                </button>
+            </div>
+             <h2 class="modal-title">Инструменты разработчика</h2>
+             <div class="page-content">
+                <div class="settings-list">
+                    <button id="reset-settings-btn" class="btn btn-danger" style="width:100%; margin-bottom: 10px;">Сбросить все настройки</button>
+                    
+                    <div class="setting-item" style="flex-direction: column; align-items: flex-start;">
+                        <span>Регулятор скорости: <span id="speed-regulator-value">100%</span></span>
+                        <input type="range" id="speed-regulator-slider" min="0.2" max="1" step="0.01" value="1" style="width: 100%;">
+                    </div>
+                    
+                    <div class="setting-item" style="flex-direction: column; align-items: flex-start;">
+                        <span>Режим управления</span>
+                         <div class="radio-group" id="control-mode-group">
+                            <input type="radio" id="control-mode-1" name="controlMode" value="mode1" checked><label for="control-mode-1">Режим #1 (Отталкивание)</label>
+                            <input type="radio" id="control-mode-2" name="controlMode" value="mode2"><label for="control-mode-2">Режим #2 (Вперед/Назад)</label>
+                         </div>
+                    </div>
+                    <div class="setting-item" style="flex-direction: column; align-items: flex-start;">
+                        <span>Множитель тяги в Режиме#2: <span id="mode2-thrust-value">100%</span></span>
+                        <input type="range" id="mode2-thrust-slider" min="0" max="1" step="0.01" value="1" style="width: 100%;">
+                    </div>
+                     <div class="setting-item" style="flex-direction: column; align-items: flex-start;">
+                        <span>Множитель астероидов: <span id="asteroid-amount-value">100%</span></span>
+                        <input type="range" id="asteroid-amount-slider" min="0.5" max="5" step="0.1" value="1" style="width: 100%;">
+                    </div>
+                    <div class="setting-item" style="flex-direction: column; align-items: flex-start;">
+                        <span>Режим гравитации</span>
+                         <div class="radio-group" id="gravity-mode-group">
+                            <input type="radio" id="g-realistic" name="gravity" value="realistic" checked><label for="g-realistic">Реалистичный (1/r²)</label>
+                            <input type="radio" id="g-linear" name="gravity" value="linear"><label for="g-linear">Линейный (1/r)</label>
+                            <input type="radio" id="g-constant" name="gravity" value="constant"><label for="g-constant">Постоянный</label>
+                         </div>
+                    </div>
+                     <div class="setting-item" style="flex-direction: column; align-items: flex-start;">
+                        <span>Коэффициент орбиты: <span id="decaying-orbit-factor-value">0.80</span></span>
+                        <input type="range" id="decaying-orbit-factor-slider" min="0" max="2" step="0.01" value="0.80" style="width: 100%;">
+                    </div>
+                    <div class="setting-item" style="flex-direction: column; align-items: flex-start;">
+                        <span>Запас топлива (сек): <span id="fuel-seconds-value">0</span></span>
+                        <input type="range" id="fuel-seconds-slider" min="0" max="100" step="1" value="0" style="width: 100%;">
+                    </div>
+                    <div class="setting-item">
+                        <span>Загрязнение обзора</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="poor-visibility-toggle">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <span>Движение облаков пыли</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="dust-clouds-move-toggle">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <span>Показ траектории</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="trajectory-toggle">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <span>Астероиды в цветах уровня</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="level-asteroids-color-toggle">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <span>Лут только в зоне</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="loot-in-zone-toggle">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <span>Интро: планеты из центра</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="intro-planets-center-toggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                     <div class="setting-item">
+                        <span>Интро</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="intro-toggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <span>Игрок сталкивается с астероидами</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="player-collision-toggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                     <div class="setting-item">
+                        <span>Столкновения между астероидами</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="asteroid-collision-toggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <span>Астероиды притягиваются к планетам</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="asteroid-gravity-toggle">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                     <div class="setting-item">
+                        <span>Лут</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="loot-toggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <span>Стабилизация</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="stabilization-toggle">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+             </div>
+        </div>
+        
+        <div id="world-map-screen" class="screen">
+            <div class="page-header">
+                <button class="btn-icon btn-back" aria-label="Назад">
+                    <svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" /></svg>
+                </button>
+            </div>
+            <h2 class="modal-title">Карта</h2>
+            <div class="page-content" style="text-align: center; margin-top: 20px;">
+                <p>(Содержимое карты мира будет здесь)</p>
+            </div>
+        </div>
+
+        <div id="station-screen" class="screen">
+            <div class="page-header">
+                <button class="btn-icon btn-back" aria-label="Назад">
+                    <svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" /></svg>
+
+                </button>
+            </div>
+            <h2 class="modal-title">Станция</h2>
+            <div class="page-content">
+                <div class="station-menu-grid">
+                    <button id="hangar-btn" class="station-btn">
+                        <div class="icon-container">
+                            <!-- ИЗМЕНЕНИЕ 2: SVG заменен на букву -->
+                            А
+                        </div>
+                        <span class="btn-text">Ангар</span>
+                    </button>
+                    <button id="workshop-btn" class="station-btn">
+                        <div class="icon-container">
+                             <!-- ИЗМЕНЕНИЕ 2: SVG заменен на букву -->
+                            М
+                        </div>
+                        <span class="btn-text">Мастерская</span>
+                    </button>
+                    <button id="store-btn" class="station-btn">
+                        <div class="icon-container">
+                            <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M14 9a2 2 0 0 0 -2 -2h-1a2 2 0 0 0 0 4h1a2 2 0 0 1 0 4h-1a2 2 0 0 1 -2 -2"></path><path d="M12 6v2"></path><path d="M12 16v2"></path></svg>
+                        </div>
+                        <span class="btn-text">Магазин</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="hangar-screen" class="screen">
+            <div class="page-header">
+                <button class="btn-icon btn-back" aria-label="Назад">
+                    <svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" /></svg>
+                </button>
+            </div>
+            <h2 class="modal-title">Ангар</h2>
+            <div class="page-content" style="text-align: center; margin-top: 20px;">
+                <p>(Здесь будет управление кораблем)</p>
+            </div>
+        </div>
+        
+        <div id="workshop-screen" class="screen">
+            <div class="page-header">
+                <button class="btn-icon btn-back" aria-label="Назад">
+                    <svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" /></svg>
+                </button>
+            </div>
+            <h2 class="modal-title">Мастерская</h2>
+            <div class="page-content" style="text-align: center; margin-top: 20px;">
+                <p>(Здесь будет кастомизация и апгрейды)</p>
+            </div>
+        </div>
+
+        <div id="store-screen" class="screen">
+            <div class="page-header">
+                <button class="btn-icon btn-back" aria-label="Назад">
+                    <svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" /></svg>
+                </button>
+            </div>
+            <h2 class="modal-title">Магазин</h2>
+            <div class="page-content" style="text-align: center; margin-top: 20px;">
+                <p>(Здесь будет покупка предметов)</p>
+            </div>
+        </div>
+
+
+        <!-- Модальные окна -->
+        <div id="pause-modal" class="modal">
+            <div class="modal-content">
+                <h2 class="modal-title">Пауза</h2>
+                <div class="modal-buttons">
+                    <button id="resume-btn" class="btn">Продолжить</button>
+                    <button id="quit-to-menu-btn" class="btn">В меню</button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="game-over-modal" class="modal">
+            <div class="modal-content">
+                <h2 class="modal-title">Крушение</h2>
+                <div id="final-score">Время: <span>0.00</span></div>
+                <div id="final-best">Рекорд: <span>0.00</span></div>
+                <div id="final-loot" style="display: none;">Собрано: <span>0</span></div>
+                <div class="modal-buttons">
+                    <button id="restart-btn" class="btn">Заново</button>
+                    <button id="menu-btn-gameover" class="btn">В меню</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    
+    <script src="main.js" type="module" defer></script>
+</body>
+</html>
